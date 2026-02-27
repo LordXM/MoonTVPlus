@@ -58,6 +58,7 @@ import DanmakuFilterSettings from '@/components/DanmakuFilterSettings';
 import DetailPanel from '@/components/DetailPanel';
 import DoubanComments from '@/components/DoubanComments';
 import DownloadEpisodeSelector from '@/components/DownloadEpisodeSelector';
+import Drawer from '@/components/Drawer';
 import EpisodeSelector from '@/components/EpisodeSelector';
 import PageLayout from '@/components/PageLayout';
 import PansouSearch from '@/components/PansouSearch';
@@ -131,6 +132,48 @@ function PlayPageClient() {
 
   // 详情面板状态
   const [showDetailPanel, setShowDetailPanel] = useState(false);
+
+  // 大屏设备检测（判断选集面板是否在右侧）
+  const [isLargeScreen, setIsLargeScreen] = useState(false);
+
+  // 检测是否为大屏设备
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsLargeScreen(window.innerWidth >= 768); // md断点
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  // 抽屉管理：打开指定抽屉时关闭其他抽屉
+  const openDrawer = (drawerName: 'pansou' | 'aiChat' | 'correct' | 'detail') => {
+    if (!isLargeScreen) {
+      // 小屏设备不需要互斥
+      switch (drawerName) {
+        case 'pansou':
+          setShowPansouDialog(true);
+          break;
+        case 'aiChat':
+          setShowAIChat(true);
+          break;
+        case 'correct':
+          setShowCorrectDialog(true);
+          break;
+        case 'detail':
+          setShowDetailPanel(true);
+          break;
+      }
+      return;
+    }
+
+    // 大屏设备：关闭其他抽屉
+    setShowPansouDialog(drawerName === 'pansou');
+    setShowAIChat(drawerName === 'aiChat');
+    setShowCorrectDialog(drawerName === 'correct');
+    setShowDetailPanel(drawerName === 'detail');
+  };
 
   // 检查AI功能是否启用
   useEffect(() => {
@@ -8103,7 +8146,7 @@ function PlayPageClient() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setShowPansouDialog(true);
+                        openDrawer('pansou');
                       }}
                       className='flex-shrink-0 hover:opacity-80 transition-opacity'
                       title='搜索网盘资源'
@@ -8115,7 +8158,7 @@ function PlayPageClient() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setShowAIChat(true);
+                          openDrawer('aiChat');
                         }}
                         className='flex-shrink-0 hover:opacity-80 transition-opacity'
                         title='AI问片'
@@ -8128,7 +8171,7 @@ function PlayPageClient() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setShowDetailPanel(true);
+                          openDrawer('detail');
                         }}
                         className='flex-shrink-0 hover:opacity-80 transition-opacity px-2 py-1 text-base font-medium text-gray-700 dark:text-gray-300'
                         title='详情'
@@ -8141,7 +8184,7 @@ function PlayPageClient() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setShowCorrectDialog(true);
+                          openDrawer('correct');
                         }}
                         className='flex-shrink-0 hover:opacity-80 transition-opacity'
                         title='纠错'
@@ -8392,36 +8435,52 @@ function PlayPageClient() {
 
       {/* 网盘搜索弹窗 */}
       {showPansouDialog && (
-        <div
-          className='fixed inset-0 z-[10000] flex items-center justify-center bg-black/50'
-          onClick={() => setShowPansouDialog(false)}
-        >
-          <div
-            className='relative w-full max-w-4xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-lg shadow-xl m-4'
-            onClick={(e) => e.stopPropagation()}
+        isLargeScreen ? (
+          <Drawer
+            isOpen={showPansouDialog}
+            onClose={() => setShowPansouDialog(false)}
+            title={`搜索网盘资源: ${detail?.title || ''}`}
+            width='w-[400px]'
           >
-            {/* 弹窗头部 */}
-            <div className='sticky top-0 z-10 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900'>
-              <h2 className='text-xl font-bold text-gray-900 dark:text-gray-100'>
-                搜索网盘资源: {detail?.title || ''}
-              </h2>
-              <button
-                onClick={() => setShowPansouDialog(false)}
-                className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
-              >
-                <X className='h-5 w-5 text-gray-600 dark:text-gray-400' />
-              </button>
-            </div>
-
-            {/* 弹窗内容 */}
             <div className='p-4'>
               <PansouSearch
                 keyword={detail?.title || ''}
                 triggerSearch={showPansouDialog}
               />
             </div>
+          </Drawer>
+        ) : (
+          <div
+            className='fixed inset-0 z-[10000] flex items-center justify-center bg-black/50'
+            onClick={() => setShowPansouDialog(false)}
+          >
+            <div
+              className='relative w-full max-w-4xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-lg shadow-xl m-4'
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 弹窗头部 */}
+              <div className='sticky top-0 z-10 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900'>
+                <h2 className='text-xl font-bold text-gray-900 dark:text-gray-100'>
+                  搜索网盘资源: {detail?.title || ''}
+                </h2>
+                <button
+                  onClick={() => setShowPansouDialog(false)}
+                  className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+                >
+                  <X className='h-5 w-5 text-gray-600 dark:text-gray-400' />
+                </button>
+              </div>
+
+              {/* 弹窗内容 */}
+              <div className='p-4'>
+                <PansouSearch
+                  keyword={detail?.title || ''}
+                  triggerSearch={showPansouDialog}
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {/* AI问片面板 */}
@@ -8436,6 +8495,8 @@ function PlayPageClient() {
             currentEpisode: currentEpisodeIndex + 1,
           }}
           welcomeMessage={aiDefaultMessageWithVideo ? aiDefaultMessageWithVideo.replace('{title}', detail.title || '') : `想了解《${detail.title}》的更多信息吗？我可以帮你查询剧情、演员、评价等。`}
+          useDrawer={isLargeScreen}
+          drawerWidth='w-[400px]'
         />
       )}
 
@@ -8460,6 +8521,8 @@ function PlayPageClient() {
             // 纠错成功后的回调
             handleCorrectSuccess();
           }}
+          useDrawer={isLargeScreen}
+          drawerWidth='w-[400px]'
         />
       )}
 
@@ -8507,6 +8570,8 @@ function PlayPageClient() {
           }
           sourceId={detail.id}
           source={detail.source}
+          useDrawer={isLargeScreen}
+          drawerWidth='w-[400px]'
         />
       )}
     </PageLayout>
